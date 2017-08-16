@@ -1,0 +1,34 @@
+﻿<libuc:BaseUserControl x:Class="Checkers.UserControls.PieceUserControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:libuc="clr-namespace:Map.UserControls;assembly=Map"
+             mc:Ignorable="d">
+    
+    <Grid>
+
+        <!-- Piece shape -->
+        <Ellipse
+            Width="{Binding Width}"
+            Height="{Binding Height}"
+            Fill="{Binding Color}" 
+            Stroke="{Binding AccentColor}"
+            StrokeThickness="5"/>
+
+        <!-- King shape -->
+        <Path Data="M12.782967,45.477609 L55.924873,45.294967 50.87627,18.891701 43.023204,33.186738 33.944127,15.091395 24.458734,33.414353 16.875741,19.278831 z" 
+              Fill="{Binding KingColor}" 
+              Margin="0,0,23,28" 
+              Stretch="Fill" 
+              Stroke="{Binding KinColor}" 
+              StrokeThickness="2" 
+              HorizontalAlignment="Right"
+              Height="23.121" 
+              VerticalAlignment="Bottom" 
+              Width="33.517"/>
+            
+    </Grid>
+    
+</libuc:BaseUserControl>
+
