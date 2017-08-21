@@ -1,5 +1,9 @@
 ﻿using System;
 using System.Collections.ObjectModel;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+using DataBase.Database.Utils;
+using Map.Interfaces;
 using Map.Models;
 
 namespace Checkers.Models
@@ -8,7 +12,9 @@ namespace Checkers.Models
     /// Define a game
     /// </summary>
     [Serializable]
-    public class Game : BaseModel
+    [Persistent]
+    [Table("Games")]
+    public class Game : BaseModel, IModel
     {
         #region Attributes
 
@@ -21,6 +27,13 @@ namespace Checkers.Models
         #endregion
 
         #region Properties
+
+        /// <summary>
+        /// Game's id
+        /// </summary>
+        [Key]
+        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+        public int Id { get; set; }
 
         /// <summary>
         /// Game's name
@@ -38,7 +51,7 @@ namespace Checkers.Models
         /// <summary>
         /// Game's players
         /// </summary>
-        public ObservableCollection<Player> Players
+        public virtual ObservableCollection<Player> Players
         {
             get => _players;
             set
@@ -51,7 +64,7 @@ namespace Checkers.Models
         /// <summary>
         /// Game's pieces
         /// </summary>
-        public ObservableCollection<Piece> Pieces
+        public virtual ObservableCollection<Piece> Pieces
         {
             get => _pieces;
             set
@@ -67,6 +80,11 @@ namespace Checkers.Models
 
         /// <summary>
         /// Default constructor
+        /// </summary>
+        public Game() {}
+
+        /// <summary>
+        /// Construct a game with a given name
         /// </summary>
         /// <param name="name">Name of the game</param>
         public Game(string name)

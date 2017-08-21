@@ -1,11 +1,21 @@
-﻿using System.Windows;
+﻿using System;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+using System.Windows;
 using System.Windows.Media;
+using DataBase.Database.Utils;
 using Map.Interfaces;
 using Map.Models;
 
 namespace Checkers.Models
 {
-    public class Piece : BaseModel, IMovable
+    /// <summary>
+    /// Define a checkers piece
+    /// </summary>
+    [Serializable]
+    [Persistent]
+    [Table("Pieces")]
+    public class Piece : BaseModel, IModel, IMovable
     {
         #region Attributes
 
@@ -28,6 +38,13 @@ namespace Checkers.Models
         #endregion
 
         #region Properties
+
+        /// <summary>
+        /// Piece's id
+        /// </summary>
+        [Key]
+        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+        public int Id { get; set; }
 
         /// <summary>
         /// Piece's width
@@ -58,41 +75,62 @@ namespace Checkers.Models
         /// <summary>
         /// Piece's color
         /// </summary>
+        [NotMapped]
         public Brush Color
         {
             get => _color;
             set
             {
                 _color = value;
+                ColorHex = BrushConverter.ConvertToString(value);
                 NotifyPropertyChanged();
             }
         }
 
         /// <summary>
+        /// Color as an hexa string value
+        /// </summary>
+        public string ColorHex { get; set; }
+
+        /// <summary>
         /// Piece's accent color
         /// </summary>
+        [NotMapped]
         public Brush AccentColor
         {
             get => _accentColor;
             set
             {
                 _accentColor = value;
+                AccentColorHex = BrushConverter.ConvertToString(value);
                 NotifyPropertyChanged();
             }
         }
 
         /// <summary>
+        /// Accent color as an hexa string value
+        /// </summary>
+        public string AccentColorHex { get; set; }
+
+        /// <summary>
         /// Piece's king color
         /// </summary>
+        [NotMapped]
         public Brush KingColor
         {
             get => _kingColor;
             set
             {
                 _kingColor = value;
+                KingColorHex = BrushConverter.ConvertToString(value);
                 NotifyPropertyChanged();
             }
         }
+
+        /// <summary>
+        /// King color as an hexa string value
+        /// </summary>
+        public string KingColorHex { get; set; }
 
         /// <summary>
         /// Piece's state
@@ -111,15 +149,28 @@ namespace Checkers.Models
         /// <summary>
         /// Piece's position
         /// </summary>
+        [NotMapped]
         public Point Position
         {
             get => _position;
             set
             {
                 _position = value;
+                X = value.X;
+                Y = value.Y;
                 NotifyPropertyChanged();
             }
         }
+
+        /// <summary>
+        /// Piece's X position
+        /// </summary>
+        public double X { get; set; }
+
+        /// <summary>
+        /// Piece's Y position
+        /// </summary>
+        public double Y { get; set; }
 
         /// <summary>
         /// Piece's owner
@@ -143,7 +194,7 @@ namespace Checkers.Models
         /// </summary>
         public Piece()
         {
-            _isKing = false;
+            IsKing = false;
             KingColor = Brushes.Transparent;
         }
 
@@ -181,7 +232,7 @@ namespace Checkers.Models
                    $"Color({Color}) " +
                    $"AccentColor({AccentColor}) " +
                    $"IsKing({IsKing}) " +
-                   $"Position({Position}) " +
+                   $"Position({X}, {Y}) " +
                    $"Player({Player})";
         }
 

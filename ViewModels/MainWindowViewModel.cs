@@ -4,6 +4,8 @@ using System.Windows.Input;
 using System.Windows.Media;
 using Checkers.Enums;
 using Checkers.Models;
+using DataBase.Database.DbContexts.Interfaces;
+using DataBase.Database.DbSettings;
 using Map.Commands;
 using Map.ViewModels;
 
@@ -18,9 +20,34 @@ namespace Checkers.ViewModels
 
         private Game _game;
 
+        /// <summary>
+        /// MySQL server
+        /// </summary>
+        private const string Server = "localhost";
+
+        /// <summary>
+        /// MySQL user
+        /// </summary>
+        private const string User = "gamemodeler";
+
+        /// <summary>
+        /// MySQL password
+        /// </summary>
+        private const string Password = "p@ssword";
+
+        /// <summary>
+        /// MySQL database name
+        /// </summary>
+        private const string Database = "game_modeler";
+
         #endregion
 
         #region Properties
+
+        /// <summary>
+        /// Entity Framework context
+        /// </summary>
+        public IUniversalContext Context { get; set; }
 
         /// <summary>
         /// Game data
@@ -45,6 +72,21 @@ namespace Checkers.ViewModels
         public ICommand NewGameCommand { get; set; }
 
         /// <summary>
+        /// Command to open a saved game from a database
+        /// </summary>
+        public ICommand OpenDbCommand { get; set; }
+
+        /// <summary>
+        /// Command to save the game in a database
+        /// </summary>
+        public ICommand SaveDbCommand { get; set; }
+
+        /// <summary>
+        /// Command to save changes
+        /// </summary>
+        public ICommand SaveCommand { get; set; }
+
+        /// <summary>
         /// Command to show the game's credits
         /// </summary>
         public ICommand AboutCommand { get; set; }
@@ -63,7 +105,21 @@ namespace Checkers.ViewModels
         /// </summary>
         public MainWindowViewModel()
         {
+            var mySqlDbSettings = DatabaseFactory
+                .MySqlDb
+                .Set
+                .DatabaseName(Database)
+                .Server(Server)
+                .UserId(User)
+                .Password(Password)
+                .ToMySqlDatabase;
+
+            Context = DatabaseFactory.CreateContext(mySqlDbSettings);
+
             NewGameCommand = new RelayCommand(NewGame, NewGameCanExecute);
+            OpenDbCommand = new RelayCommand(OpenDb, null);
+            SaveDbCommand = new RelayCommand(SaveDb, null);
+            SaveCommand = new RelayCommand(Save, SaveCanExecute);
             ExitCommand = new RelayCommand(Exit, ExitCanExecute);
             AboutCommand = new RelayCommand(About, null);
         }
@@ -91,6 +147,8 @@ namespace Checkers.ViewModels
         public void NewGame(object parameter)
         {
             Game = new Game("Game 1");
+            Game.Players.Clear();
+            Game.Pieces.Clear();
 
             Game.Players.Add(new Player("Player 1", Brushes.Silver, Brushes.Gray, Side.Top));
             Game.Players.Add(new Player("Player 2", Brushes.Gold, Brushes.DarkOrange, Side.Bottom));
@@ -204,68 +262,189 @@ namespace Checkers.ViewModels
             Game.Players.First(p => p.Side == Side.Top).IsActive = true;
         }
 
+        /// <summary>
+        /// Triggered when a cell gets left clicked
+        /// Move the selected piece to the new position if the movement is allowed
+        /// </summary>
+        /// <param name="sender">Object calling the method</param>
+        /// <param name="e">Mouse event arguments</param>
         public override void OnCellMouseLeftPressed(object sender, MouseEventArgs e)
         {
             base.OnCellMouseLeftPressed(sender, e);
 
+            // If the position im focus is allowed
             if (IsLegalMove(PositionInFocus))
             {
-                ((Piece) SelectedItem).Position = PositionInFocus;
+                var piece = (Piece) SelectedItem;
+                var oldPosition = piece.Position;
+                var movement = PositionInFocus - oldPosition;
+                Point? capturedPiecePosition = null;
+
+                if (movement == new Vector(-2, -2))
+                {
+                    capturedPiecePosition = oldPosition + new Vector(-1, -1);
+                }
+                else if (movement == new Vector(2, -2))
+                {
+                    capturedPiecePosition = oldPosition + new Vector(1, -1);
+                }
+                else if (movement == new Vector(-2, 2))
+                {
+                    capturedPiecePosition = oldPosition + new Vector(-1, 1);
+                }
+                else if (movement == new Vector(2, 2))
+                {
+                    capturedPiecePosition = oldPosition + new Vector(1, 1);
+                }
+
+                ValidPositions.Clear();
+                ValidatePositions();
+
+                // Move the piece to the destination
+                piece.Position = PositionInFocus;
+
+                // If the piece has moved the first or last row depending on the active player
+                if (piece.Player.Side == Side.Top && piece.Position.Y.Equals(8) ||
+                    piece.Player.Side == Side.Bottom && piece.Position.Y.Equals(1))
+                {
+                    // Make it a king
+                    piece.IsKing = true;
+                }
+
+                if (capturedPiecePosition != null)
+                {
+                    var otherPlayer = Game.Players.First(p => !p.IsActive);
+
+                    Game.Pieces.Remove(Game.Pieces.First(p => p.Position == capturedPiecePosition));
+                    otherPlayer.PiecesCount--;
+
+                    if (otherPlayer.PiecesCount < 1)
+                    {
+                        var player = Game.Players.First(p => p.IsActive);
+                        MessageBox.Show($"{player.Username} won the game with {player.PiecesCount} remaining pieces",
+                            "Congratulations", MessageBoxButton.OK, MessageBoxImage.Information);
+                        player.IsActive = false;
+                        return;
+                    }
+
+                    PlayTurn(true);
+                }
+                else
+                {
+                    ChangeActivePlayer();
+                }
             }
-        }
-
-        public override void OnCellMouseLeftReleased(object sender, MouseEventArgs e)
-        {
-            base.OnCellMouseLeftReleased(sender, e);
-        }
-
-        public override void OnCellMouseRightPressed(object sender, MouseEventArgs e)
-        {
-            base.OnCellMouseRightPressed(sender, e);
-        }
-
-        public override void OnCellMouseRightReleased(object sender, MouseEventArgs e)
-        {
-            base.OnCellMouseRightReleased(sender, e);
         }
 
         public override void OnUserControlMouseLeftPressed(object sender, MouseEventArgs e)
         {
+            // Base view model sets the SelectedItem
             base.OnUserControlMouseLeftPressed(sender, e);
 
-            var piece = SelectedItem as Piece;
-            ValidPositions.Clear();
+            PlayTurn();
+        }
 
+        public void PlayTurn(bool afterCapture = false)
+        {
+            // Cast item to a piece and clear valid positions
+            var piece = SelectedItem as Piece;
+
+            ValidPositions.Clear();
+            ValidatePositions();
+
+            // If item is not a piece or piece's owner is not the active player
             if (piece == null || !piece.Player.IsActive)
             {
                 return;
             }
 
-            if (piece.Player.Side == Side.Top)
+            // If piece is king (move in any direction)
+            if (piece.IsKing)
             {
-                ValidPositions.AddRange(new []
+                ValidPositions.AddRange(new[]
                 {
-                    piece.Position + new Vector(-1, 1), 
-                    piece.Position + new Vector(1, 1), 
+                    piece.Position + new Vector(-1, -1),
+                    piece.Position + new Vector(1, -1),
+                    piece.Position + new Vector(-1, 1),
+                    piece.Position + new Vector(1, 1)
                 });
-
-                ValidatePositions();
             }
-        }
+            else
+            {
+                // If active player is the top one (Move down)
+                if (piece.Player.Side == Side.Top)
+                {
+                    ValidPositions.AddRange(new[]
+                    {
+                        piece.Position + new Vector(-1, 1),
+                        piece.Position + new Vector(1, 1)
+                    });
+                }
 
-        public override void OnUserControlMouseLeftReleased(object sender, MouseEventArgs e)
-        {
-            base.OnUserControlMouseLeftReleased(sender, e);
-        }
+                // If active player is the bottom one (Move up)
+                else
+                {
+                    ValidPositions.AddRange(new[]
+                    {
+                        piece.Position + new Vector(-1, -1),
+                        piece.Position + new Vector(1, -1)
+                    });
+                }
+            }
 
-        public override void OnUserControlMouseRightPressed(object sender, MouseEventArgs e)
-        {
-            base.OnUserControlMouseRightPressed(sender, e);
-        }
+            // For each position, verify if it is available and if a capture can happen
+            for (var i = 0; i < ValidPositions.Count; i++)
+            {
+                // Get data in the destination cell
+                var dataInPosition = GetLayerData(ValidPositions[i]);
 
-        public override void OnUserControlMouseRightReleased(object sender, MouseEventArgs e)
-        {
-            base.OnUserControlMouseRightReleased(sender, e);
+                // If a piece exists
+                if (dataInPosition != null)
+                {
+                    var existingPiece = (Piece)dataInPosition;
+
+                    // If the piece belongs to the other player
+                    if (!existingPiece.Player.IsActive)
+                    {
+                        var position = ValidPositions[i] - piece.Position;
+                        Point newPosition;
+
+                        if (position == new Vector(-1, 1))
+                        {
+                            newPosition = ValidPositions[i] + new Vector(-1, 1);
+                        }
+                        else if (position == new Vector(1, 1))
+                        {
+                            newPosition = ValidPositions[i] + new Vector(1, 1);
+                        }
+                        else if (position == new Vector(-1, -1))
+                        {
+                            newPosition = ValidPositions[i] + new Vector(-1, -1);
+                        }
+                        else
+                        {
+                            newPosition = ValidPositions[i] + new Vector(1, -1);
+                        }
+
+                        if (GetLayerData(newPosition) == null)
+                        {
+                            ValidPositions.Add(newPosition);
+                        }
+                    }
+                }
+            }
+
+            if (afterCapture)
+            {
+                ValidPositions.RemoveRange(0, piece.IsKing ? 4 : 2);
+            }
+
+            ValidatePositions();
+
+            if (afterCapture && ValidPositions.Count == 0)
+            {
+                ChangeActivePlayer();
+            }
         }
 
         /// <summary>
@@ -280,7 +459,67 @@ namespace Checkers.ViewModels
         }
 
         /// <summary>
-        /// Decide if the application can be termiated
+        /// Open a saved game from a database
+        /// </summary>
+        /// <param name="parameter">Parameter sent by the caller</param>
+        public async void OpenDb(object parameter)
+        {
+            var param = parameter as string;
+            int id;
+
+            if (param == null || !int.TryParse(param, out id))
+            {
+                return;
+            }
+
+            Game = await Context.Entity<Game>().GetAsync(id);
+
+            foreach (var player in Game.Players)
+            {
+                player.Color = (Brush)player.BrushConverter.ConvertFromString(player.ColorHex);
+                player.AccentColor = (Brush)player.BrushConverter.ConvertFromString(player.AccentColorHex);
+            }
+
+            foreach (var piece in Game.Pieces)
+            {
+                piece.Color = (Brush)piece.BrushConverter.ConvertFromString(piece.ColorHex);
+                piece.AccentColor = (Brush)piece.BrushConverter.ConvertFromString(piece.AccentColorHex);
+                // piece.KingColor = (Brush)piece.BrushConverter.ConvertFromString(piece.KingColorHex);
+
+                piece.Position = new Point(piece.X, piece.Y);
+            }
+        }
+
+        /// <summary>
+        /// Save the game in a database
+        /// </summary>
+        /// <param name="parameter">Parameter sent by the caller</param>
+        public async void SaveDb(object parameter)
+        {
+            await Context.Entity<Game>().InsertAsync(Game);
+        }
+
+        /// <summary>
+        /// Decide if the game can be updated
+        /// </summary>
+        /// <param name="parameter">Parameter sent by the caller</param>
+        /// <returns></returns>
+        public bool SaveCanExecute(object parameter)
+        {
+            return Game != null;
+        }
+
+        /// <summary>
+        /// Save the changes of a game
+        /// </summary>
+        /// <param name="parameter">Parameter sent by the caller</param>
+        public async void Save(object parameter)
+        {
+            await Context.Entity<Game>().UpdateAsync(Game);
+        }
+
+        /// <summary>
+        /// Decide if the application can be terminated
         /// </summary>
         /// <param name="parameter">Parameter sent by the caller</param>
         /// <returns>True if the application can be terminated, false otherwise</returns>

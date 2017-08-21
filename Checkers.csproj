@@ -34,10 +34,15 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Map">
-      <HintPath>..\..\Imie\GameModeler\Main\Map\bin\Debug\Map.dll</HintPath>
+    <Reference Include="DataBase">
+      <HintPath>..\..\Imie\GameModeler\DataBase\bin\Debug\DataBase.dll</HintPath>
+    </Reference>
+    <Reference Include="Map, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\Imie\GameModeler\Map\bin\Debug\Map.dll</HintPath>
     </Reference>
     <Reference Include="System" />
+    <Reference Include="System.ComponentModel.DataAnnotations" />
     <Reference Include="System.Data" />
     <Reference Include="System.Xml" />
     <Reference Include="Microsoft.CSharp" />

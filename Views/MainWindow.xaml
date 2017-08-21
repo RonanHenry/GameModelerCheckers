@@ -28,6 +28,9 @@
         <KeyBinding Modifiers="Control"
                     Key="N"
                     Command="{Binding NewGameCommand}" />
+        <KeyBinding Modifiers="Control"
+                    Key="S"
+                    Command="{Binding SaveCommand}" />
         <KeyBinding Key="F1"
                     Command="{Binding AboutCommand}" />
     </Window.InputBindings>
@@ -43,13 +46,17 @@
                           Command="{Binding NewGameCommand}" />
                 <MenuItem Header="Open">
                     <MenuItem Header="From a file..." />
-                    <MenuItem Header="From a database..." />
+                    <MenuItem Header="From a database..."
+                              Command="{Binding OpenDbCommand}"
+                              CommandParameter="1" />
                 </MenuItem>
                 <MenuItem Header="Save"
-                          InputGestureText="CTRL+S" />
+                          InputGestureText="CTRL+S"
+                          Command="{Binding SaveCommand}" />
                 <MenuItem Header="Save As">
                     <MenuItem Header="File..." />
-                    <MenuItem Header="Database..." />
+                    <MenuItem Header="Database..."
+                              Command="{Binding SaveDbCommand}" />
                 </MenuItem>
                 <MenuItem Header="Exit"
                           InputGestureText="ALT+F4"

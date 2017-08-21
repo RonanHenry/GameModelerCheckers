@@ -1,6 +1,10 @@
 ﻿using System;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 using System.Windows.Media;
 using Checkers.Enums;
+using DataBase.Database.Utils;
+using Map.Interfaces;
 using Map.Models;
 
 namespace Checkers.Models
@@ -9,7 +13,9 @@ namespace Checkers.Models
     /// Define a player
     /// </summary>
     [Serializable]
-    public class Player : BaseModel
+    [Persistent]
+    [Table("Players")]
+    public class Player : BaseModel, IModel
     {
         #region Attributes
 
@@ -30,6 +36,13 @@ namespace Checkers.Models
         #region Properties
 
         /// <summary>
+        /// Player's id
+        /// </summary>
+        [Key]
+        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+        public int Id { get; set; }
+
+        /// <summary>
         /// Player's username
         /// </summary>
         public string Username
@@ -45,28 +58,42 @@ namespace Checkers.Models
         /// <summary>
         /// Player's color
         /// </summary>
+        [NotMapped]
         public Brush Color
         {
             get => _color;
             set
             {
                 _color = value;
+                ColorHex = BrushConverter.ConvertToString(value);
                 NotifyPropertyChanged();
             }
         }
 
         /// <summary>
+        /// Color as an hexa string value
+        /// </summary>
+        public string ColorHex { get; set; }
+
+        /// <summary>
         /// player's accent color
         /// </summary>
+        [NotMapped]
         public Brush AccentColor
         {
             get => _accentColor;
             set
             {
                 _accentColor = value;
+                AccentColorHex = BrushConverter.ConvertToString(value);
                 NotifyPropertyChanged();
             }
         }
+
+        /// <summary>
+        /// Accent color as an hexa string value
+        /// </summary>
+        public string AccentColorHex { get; set; }
 
         /// <summary>
         /// Player's state
